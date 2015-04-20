@@ -1,4 +1,4 @@
-set -e
+set -ev
 
 HADOOP_VER=2.5.2
 
@@ -8,22 +8,25 @@ if [ ! -f hadoop-${HADOOP_VER}.tar.gz ]; then
 wget http://apache.osuosl.org/hadoop/common/hadoop-${HADOOP_VER}/hadoop-${HADOOP_VER}.tar.gz
 fi
 
-sudo tar vxzf hadoop-${HADOOP_VER}.tar.gz -C /usr/local
 cd /usr/local
+if [ ! -d /usr/local/hadoop-${HADOOP_VER} ]; then
+sudo tar vxzf ~/hadoop-${HADOOP_VER}.tar.gz -C /usr/local
+fi
+ 
 sudo mv hadoop-${HADOOP_VER} hadoop
 sudo chown -R hduser:hadoop hadoop
 
 # Init bashrc with hadoop env variables
-sudo sh -c 'echo export JAVA_HOME=/usr/lib/jvm/java-8-oracle >> /home/hduser/.bashrc'
-sudo sh -c 'echo export HADOOP_INSTALL=/usr/local/hadoop >> /home/hduser/.bashrc'
-sudo sh -c 'echo export PATH=\$PATH:\$HADOOP_INSTALL/bin >> /home/hduser/.bashrc'
-sudo sh -c 'echo export PATH=\$PATH:\$HADOOP_INSTALL/sbin >> /home/hduser/.bashrc'
-sudo sh -c 'echo export HADOOP_MAPRED_HOME=\$HADOOP_INSTALL >> /home/hduser/.bashrc'
-sudo sh -c 'echo export HADOOP_COMMON_HOME=\$HADOOP_INSTALL >> /home/hduser/.bashrc'
-sudo sh -c 'echo export HADOOP_HDFS_HOME=\$HADOOP_INSTALL >> /home/hduser/.bashrc'
-sudo sh -c 'echo export YARN_HOME=\$HADOOP_INSTALL >> /home/hduser/.bashrc'
-sudo sh -c 'echo export HADOOP_COMMON_LIB_NATIVE_DIR=\$\{HADOOP_INSTALL\}/lib/native >> /home/hduser/.bashrc'
-sudo sh -c 'echo export HADOOP_OPTS=\"-Djava.library.path=\$HADOOP_INSTALL/lib\" >> /home/hduser/.bashrc'
+sudo -u hduser sh -c 'echo export JAVA_HOME=/usr/lib/jvm/java-8-oracle >> /home/hduser/.bashrc'
+sudo -u hduser sh -c 'echo export HADOOP_INSTALL=/usr/local/hadoop >> /home/hduser/.bashrc'
+sudo -u hduser sh -c 'echo export PATH=\$PATH:\$HADOOP_INSTALL/bin >> /home/hduser/.bashrc'
+sudo -u hduser sh -c 'echo export PATH=\$PATH:\$HADOOP_INSTALL/sbin >> /home/hduser/.bashrc'
+sudo -u hduser sh -c 'echo export HADOOP_MAPRED_HOME=\$HADOOP_INSTALL >> /home/hduser/.bashrc'
+sudo -u hduser sh -c 'echo export HADOOP_COMMON_HOME=\$HADOOP_INSTALL >> /home/hduser/.bashrc'
+sudo -u hduser sh -c 'echo export HADOOP_HDFS_HOME=\$HADOOP_INSTALL >> /home/hduser/.bashrc'
+sudo -u hduser sh -c 'echo export YARN_HOME=\$HADOOP_INSTALL >> /home/hduser/.bashrc'
+sudo -u hduser sh -c 'echo export HADOOP_COMMON_LIB_NATIVE_DIR=\$\{HADOOP_INSTALL\}/lib/native >> /home/hduser/.bashrc'
+sudo -u hduser sh -c 'echo export HADOOP_OPTS=\"-Djava.library.path=\$HADOOP_INSTALL/lib\" >> /home/hduser/.bashrc'
 
 # Modify JAVA_HOME in hadoop-env
 cd /usr/local/hadoop/etc/hadoop
@@ -39,7 +42,7 @@ sudo -u hduser sed -i.bak 's=<configuration>=<configuration>\<property>\<name>ya
 sudo -u hduser cp mapred-site.xml.template mapred-site.xml
 sudo -u hduser sed -i.bak 's=<configuration>=<configuration>\<property>\<name>mapreduce\.framework\.name</name>\<value>yarn</value>\</property>=g' mapred-site.xml
 
-cd ~
+cd ~hduser
 sudo -u hduser sh -c 'mkdir -p mydata/hdfs/namenode'
 sudo -u hduser sh -c 'mkdir -p mydata/hdfs/datanode'
 sudo chown -R hduser:hadoop /home/hduser/mydata

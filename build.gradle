@@ -15,9 +15,9 @@ group       = "com.ebay.myriad"
 version     = "0.0.1"
 
 ext {
-    mesosVer = "0.21.1"
-    hadoopVer = "2.5.0"
-    metricsVer = "3.1.0"
+    mesosVer 	= "0.21.1"
+    hadoopVer 	= "2.5.0"
+    metricsVer 	= "3.1.0"
 }
 
 configurations.create('myriadExecutorConf')
@@ -59,37 +59,102 @@ dependencies {
 
 
 run {
-    systemProperty "myriad.config", "build/resources/main/myriad-config-default.yml"
+    systemProperty "myriad.config", "build/resources/main/config/myriad-config-default.yml"
+}
+
+
+
+sourceSets {
+       main {
+          resources {
+               // reduce confusion as to where this is pulled from. Should
+               // be $YARN_HOME/etc/hadoop
+               exclude '**/config/*'
+          }
+       }
+}
+
+String beginMyriad = "BEGIN MYRIAD"
+String endMyriad   = "END MYRIAD"
+String yarnHome    = "yarn.home"
+String tmpYarnFile = '/tmp/tempYarnSite.xml'
+ 
+def syncLibs (srcLib, yHome) {
+    exec {
+        commandLine  '/usr/bin/sudo','-u','hduser','/usr/bin/rsync','-av',srcLib,yHome+'/share/hadoop/yarn/lib'
+    }
+}
+
+ 
+def isGenerated (siteFile, bMyriad, eMyriad) {
+     String ttext = siteFile.getText()
+     return ttext.indexOf(bMyriad) > 0 && ttext.indexOf(eMyriad) > 0
+}
+
+ 
+def getYarnSiteFile ( yHome ) {
+   return file(yHome+'/etc/hadoop/yarn-site.xml')
+}
+
+ 
+def getYarnProperties (){
+    return file('src/main/resources/config/yarn-site.properties').getText()
 }
 
 task capsule(type: Jar, dependsOn: jar) {
     archiveName = "myriad-capsule-${version}.jar"
-
     from jar
     from { configurations.runtime }
-	from { sourceSets.main.resources }
+    from { sourceSets.main.resources }
 
     from(configurations.capsule.collect { zipTree(it) }) { include 'Capsule.class' }
 
     manifest {
         attributes(
-            'Main-Class'  		: 'Capsule',
+            'Main-Class'  	: 'Capsule',
             'Application-Class' : mainClassName,
             'Min-Java-Version' 	: '1.7.0',
-            'JVM-Args' 			: run.jvmArgs.join(' '),
+            'JVM-Args' 		: run.jvmArgs.join(' '),
             'System-Properties' : (run.systemProperties + ["myriad.config": '$CAPSULE_DIR/myriad-config-default.yml']).collect { k,v -> "$k=$v" }.join(' ')
         )
     }
 }
 
 // copies dependencies to build/libs dir
+// Also if -Dyarn.home is used then it will copy the files to the yarn lib
+//
 task copyRunTimeDeps(type: Sync) {
+
     from configurations.runtime
     into "$buildDir/libs"
+
+    doLast {
+        String src = "$buildDir/libs/"
+        if (System.properties[yarnHome] != null){
+    	   syncLibs(src,System.properties[yarnHome] )
+        }
+    }
 }
 
 jar {
     dependsOn copyRunTimeDeps
+
+    // Exclude log4j from the resource manager's enviroment so it does not interfere with its logging.
+    exclude('log4j.xml')
+
+    // Exclude the configuration file to cut down on confusion about where its being 
+    // pulled from. It should be pulled from $YARN_HOME/etc/hadoop
+    exclude ('**/config/*')    
+}
+
+task scheduler (dependsOn: build){
+
+    doFirst {
+        String src = "$buildDir/libs/"
+        if (System.properties[yarnHome] != null){
+    	   syncLibs(src,System.properties[yarnHome] )
+        }
+    }
 }
 
 task capsuleExecutor(type: Jar, dependsOn: jar) {
@@ -98,7 +163,7 @@ task capsuleExecutor(type: Jar, dependsOn: jar) {
     from jar
     from { configurations.runtime }
     from { configurations.myriadExecutorConf }
-	from { sourceSets.main.resources }
+    from { sourceSets.main.resources }
 
     from(configurations.capsule.collect { zipTree(it) }) { include 'Capsule.class' }
 
@@ -111,4 +176,148 @@ task capsuleExecutor(type: Jar, dependsOn: jar) {
             'System-Properties' : (run.systemProperties).collect { k,v -> "$k=$v" }.join(' ')
         )
     }
+    // After the jar has been created then move it to where it belongs.
+    doLast {
+    	String tgt = '/usr/local/libexec/mesos'
+    	String src = "$buildDir/libs/"+archiveName
+    	exec {
+            commandLine '/usr/bin/sudo','/bin/mkdir','-p',tgt 	
+    	}
+    	exec {
+    		commandLine '/usr/bin/sudo','/bin/cp',src,tgt
+     	}
+    }
 }
+
+task setup1(type: Exec) {
+    
+    standardInput = System.in
+    workingDir './'   
+    
+    doFirst {
+        commandLine  './setup-yarn-1.sh'
+    }
+}
+task setup2(type: Exec) {
+  
+    standardInput  = System.in
+    workingDir './'
+    
+    // This does not work because of the password requirement. could not get around it.    
+    doFirst {
+        String script = System.getProperty("user.dir")+'/setup-yarn-2.sh'
+        commandLine  '/usr/bin/sudo','sh','-c', script
+    }
+}
+
+// Setup the yarn environement.
+//
+task setup (dependsOn: ['setup1','setup2']){
+}
+
+// Set the system property yarn.home to the default if it is not already set.
+//
+task setYarnHome {
+    doFirst {
+        if (System.properties[yarnHome] == null){
+    		System.setProperty(yarnHome,"/usr/local/hadoop")
+    	}
+	}
+}
+
+
+
+// Add the yarn-site.properties to the yarn-site.xml
+//
+// Usage: gradlew -Dyarn.home=<yarn root dir> updateYarnSite
+//
+task updateYarnSite {
+
+    doFirst {
+        String yhome = System.properties[yarnHome]
+    
+        // If yarn.home is set then assume the user wants to update the yarn-site.xml
+        if ( yhome != null) {
+       	    def siteFile = getYarnSiteFile(yhome);
+        	delete tmpYarnFile
+            def tmpFile  = file(tmpYarnFile)
+            
+            // Is the file a myriad generated site file?
+            if (isGenerated(getYarnSiteFile(yhome), beginMyriad, endMyriad)) {
+                    boolean found=false
+                siteFile.eachLine {
+                    if (!found)
+        	            tmpFile.append(it+'\n')
+                    if (it.indexOf(beginMyriad) > 0){
+        			     tmpFile.append(getYarnProperties())
+        			     found=true;
+                    }
+                    else if(it.indexOf(endMyriad) > 0) {
+                        tmpFile.append(it+'\n')
+                        found=false 
+                    }
+        	    }
+        	}
+        	// make it so
+            else {
+                siteFile.eachLine {
+                    tmpFile.append(it+'\n')
+                    if (it.indexOf("<configuration>") > -1){
+                        tmpFile.append("\n<!-- "+beginMyriad+" -->\n")
+                        tmpFile.append(getYarnProperties())
+                        tmpFile.append("\n<!-- "+endMyriad+" -->\n")
+                    }
+                }
+            }
+    
+            exec {
+                commandLine  '/usr/bin/sudo','-u','hduser','/bin/cp',tmpYarnFile,yhome+'/etc/hadoop/yarn-site.xml'
+            }
+        }
+    }
+}
+
+// Add the Myriad config yml file to the hadoop config area, iff, yarn-home is defined.
+//
+// Usage: gradlew -Dyarn.home=<yarn root dir> addMyriadConfigs
+//
+task addMyriadConfigs (type: Exec) {
+    doFirst {
+        if (System.properties[yarnHome] != null){
+            commandLine  '/usr/bin/sudo','-u','hduser','/bin/cp','-v','src/main/resources/config/myriad-config-default.yml',System.properties[yarnHome]+'/etc/hadoop'
+        }
+        else {
+            commandLine '/bin/echo','Failed,no yarn home property'
+        }
+    }
+}
+
+// Add all the config files to the yarn.home config area
+//
+// Usage: gradlew -Dyarn.home=<yarn root dir> addAllConfigs
+//
+task addAllConfigs(dependsOn: ['addMyriadConfigs', 'updateYarnSite']){
+}
+
+// Usage: gradlew -Dyarn.home=<yarn root dir> setupArtifacts
+//
+// set yarn.home if you want the jars and configs to be pushed automatically to the 
+// correct location.
+//
+task setupArtifacts(dependsOn: ['scheduler','capsuleExecutor','addAllConfigs']){
+}
+
+// Install the entire distro, including setup yarn. The setup scripts will prompt for
+// input which is somewhat mangled by gradle...you just have to get use to it until
+// gradle fixes their shit.
+//
+task install(dependsOn: ['setYarnHome','setup','setupArtifacts']){
+}
+
+addAllConfigs.mustRunAfter capsuleExecutor
+capsuleExecutor.mustRunAfter scheduler
+scheduler.mustRunAfter setup
+setupArtifacts.mustRunAfter setup
+setup2.mustRunAfter setup1
+build.mustRunAfter setup
+
