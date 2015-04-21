@@ -200,10 +200,6 @@ task setup1(type: Exec) {
 }
 task setup2(type: Exec) {
   
-    standardInput  = System.in
-    workingDir './'
-    
-    // This does not work because of the password requirement. could not get around it.    
     doFirst {
         String script = System.getProperty("user.dir")+'/setup-yarn-2.sh'
         commandLine  '/usr/bin/sudo','sh','-c', script
