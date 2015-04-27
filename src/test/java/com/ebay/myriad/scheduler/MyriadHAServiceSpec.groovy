@@ -27,14 +27,27 @@ class MyriadHAServiceSpec extends Specification {
             def injector = Guice.createInjector(dm)     
             def HAService haService = injector.getInstance(HAService.class)
             assert haService != null
-  
+            System.out.println("Setup");
+            
         when:
-            haService.startAsync()
+            System.out.println("startup");
+            haService.startUp()
             
         then:
-            haService.awaitTerminated();
+            sleep()
+            
+            System.out.println("isRunning");
+            
+            while (haService.isRunning()) {
+                sleep()
+            }
+                
+            System.out.println("isRunning no");
+                
          
     }
+    // This test runs two threads, figures which is the leader, kills it,
+    // then checks to see if the other becomes a leader, then kills that one.
     // Make sure the RM is not running
     def "testLeaderElectionWithFailure" () {
         setup:
@@ -115,25 +128,33 @@ class MyriadHAServiceSpec extends Specification {
             injector = Guice.createInjector(dm);
             this.testId = id;
             this.start();
+            sleep(500);
         }
         public boolean isLeader() {
             return haService.isLeader();
         }
         public void stopService() {
-            haService.stopAsync();
+            haService.triggerShutdown();
         }
         public boolean isRunning() {
-            return haService.isRunning();
+            return (haService != null ? haService.isRunning() : false );
         }
         public void run() {
              haService = injector.getInstance(MyriadHAService.class);
            
             assert haService != null
             try {
-            System.out.println("Starting service " + testId);
-            haService.startAsync();
-            haService.awaitTerminated();
+                System.out.println("Starting service " + testId);
+                haService.startUp();
+                while(isRunning()) {
+                    sleep(500);
+                }
+                    
+                //haService.awaitTerminated();
+            
             } catch (Exception e) {
+            
+                System.err.println ( "Service Failed " + e.getMessage());
                 fail();
             }
             System.out.println("ServiceThread ending " + testId);         

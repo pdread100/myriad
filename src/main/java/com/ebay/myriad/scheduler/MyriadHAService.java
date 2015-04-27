@@ -8,14 +8,13 @@ import org.apache.curator.framework.recipes.leader.LeaderLatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.util.concurrent.AbstractExecutionThreadService;
 
 /**
  * 
  * Myriad's High Available service 
  *
  */
-public class MyriadHAService extends AbstractExecutionThreadService implements HAService {
+public class MyriadHAService implements HAService {
     
     @Inject
     public MyriadHAService (CuratorFramework leadershipFramework,
@@ -35,7 +34,7 @@ public class MyriadHAService extends AbstractExecutionThreadService implements H
      * This is executed by the Service#startAsync(), in the Myriad Main.class
      */
     @Override
-    protected void startUp() throws Exception {
+    public void startUp() throws Exception {
         LOGGER.info("Starting HA service......");
   
         final MyriadHAService service = this;
@@ -48,16 +47,16 @@ public class MyriadHAService extends AbstractExecutionThreadService implements H
                     service.triggerShutdown();
                 } catch (Exception e) {
                 }
-                try {
-                    service.awaitTerminated();
-                } catch (Exception e) {
-                }
             }
         });
        
+        internalThread = new Thread(this);
+        internalThread.setDaemon(true);
+        internalThread.start();
     }
+    
     @Override
-    protected void run() throws Exception{
+    public void run() {
         
         try {
              LOGGER.info("HA service running.......");
@@ -78,14 +77,13 @@ public class MyriadHAService extends AbstractExecutionThreadService implements H
              
         } catch (Exception e) {
             LOGGER.error("Exception  ", e);
-            throw e;
         }
         LOGGER.info("HA service exiting.......");
      
     }
 
     @Override
-    protected void triggerShutdown() {
+    public void triggerShutdown() {
        
         driverManager.stopDriver();
         try {
@@ -100,7 +98,10 @@ public class MyriadHAService extends AbstractExecutionThreadService implements H
         // The countdown latch blocks run() from exiting. Counting down the latch removes the block.
         latch.countDown(); 
     }
-    
+    @Override
+    public boolean isRunning() {
+        return internalThread.isAlive();
+    }
     protected void electLeadership() {
         LOGGER.info("MyriadHAService: electLeadership......");
         setLeader(true);
@@ -121,7 +122,7 @@ public class MyriadHAService extends AbstractExecutionThreadService implements H
     private DriverManager driverManager;
     private CuratorFramework leadershipFramework;
     private boolean isLeader;
-    
+    private Thread internalThread;
     
     private static final Logger LOGGER = LoggerFactory.getLogger(MyriadHAService.class);
 

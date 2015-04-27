@@ -107,7 +107,11 @@ public class Main {
     
     private void startDriverService(Injector injector) {
         LOGGER.info("starting HA service..");
-        injector.getInstance(HAService.class).startAsync();
+        try {
+            injector.getInstance(HAService.class).startUp();
+        } catch (Exception e) {
+            LOGGER.error("Ha service failed to startup because " + e.getMessage());
+        }
         LOGGER.info("started HA service..");
     }
     /**

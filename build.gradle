@@ -116,6 +116,9 @@ task copyRunTimeDeps(type: Sync) {
 
 jar {
     dependsOn copyRunTimeDeps
+    // Exclude log4j from the resource manager's enviroment so it does not interfere with its logging.
+    exclude('log4j.xml')
+
 }
 
 task capsuleExecutor(type: Jar, dependsOn: jar) {
