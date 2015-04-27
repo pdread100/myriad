@@ -29,7 +29,7 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * Manager for the myriad scheduler driver
  */
-public class MyriadDriverManager {
+public class MyriadDriverManager implements DriverManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(MyriadDriverManager.class);
     private final Lock driverLock;
     private MyriadDriver driver;
@@ -41,7 +41,8 @@ public class MyriadDriverManager {
         this.driverLock = new ReentrantLock();
         this.driverStatus = Protos.Status.DRIVER_NOT_STARTED;
     }
-
+    
+    @Override
     public Status startDriver() {
         this.driverLock.lock();
         try {
@@ -55,6 +56,7 @@ public class MyriadDriverManager {
         return this.driverStatus;
     }
 
+    @Override
     public Status stopDriver() {
         this.driverLock.lock();
         try {
@@ -69,6 +71,7 @@ public class MyriadDriverManager {
         return driverStatus;
     }
 
+    @Override
     public Status kill(final TaskID taskId) {
         LOGGER.info("Killing task {}", taskId);
         this.driverLock.lock();
@@ -87,6 +90,7 @@ public class MyriadDriverManager {
         return driverStatus;
     }
 
+    @Override
     public Status getDriverStatus() {
         return this.driverStatus;
     }

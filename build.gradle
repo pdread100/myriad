@@ -20,6 +20,14 @@ ext {
     metricsVer = "3.1.0"
 }
 
+configurations.all {
+
+
+    resolutionStrategy {
+	force 'log4j:log4j:1.2.17','com.google.guava:guava:18.0'
+    }
+}
+
 configurations.create('myriadExecutorConf')
 
 configurations {
@@ -53,21 +61,39 @@ dependencies {
     compile "com.fasterxml.jackson.core:jackson-databind:2.4.2"
     compile "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.4.2"
     compile "org.apache.curator:curator-framework:2.6.0"
+    compile "org.apache.curator:curator-recipes:2.6.0"
     testCompile 'junit:junit:4.11'
     testCompile 'commons-collections:commons-collections:3.2.1'
+    testCompile 'com.google.inject:guice:3.0'
+    testRuntime 'log4j:log4j:1.2.17'
+    testRuntime 'org.slf4j:slf4j-log4j12:1.7.7'
+
+    // Pick up the log4j.xml so log messages can be seen.
+    testRuntime files("build/resources/main")
+
+
 }
 
+
+// Allow logging to the console...
+tasks.withType(Test) {
+    testLogging {
+	showStandardStreams = true
+    }
+}
 
 run {
     systemProperty "myriad.config", "build/resources/main/myriad-config-default.yml"
 }
+
+
 
 task capsule(type: Jar, dependsOn: jar) {
     archiveName = "myriad-capsule-${version}.jar"
 
     from jar
     from { configurations.runtime }
-	from { sourceSets.main.resources }
+    from { sourceSets.main.resources }
 
     from(configurations.capsule.collect { zipTree(it) }) { include 'Capsule.class' }
 

@@ -18,9 +18,13 @@ package com.ebay.myriad;
 import com.ebay.myriad.configuration.MyriadConfiguration;
 import com.ebay.myriad.policy.LeastAMNodesFirstPolicy;
 import com.ebay.myriad.policy.NodeScaleDownPolicy;
+import com.ebay.myriad.scheduler.CuratorUtils;
+import com.ebay.myriad.scheduler.DriverManager;
+import com.ebay.myriad.scheduler.HAService;
 import com.ebay.myriad.scheduler.MyriadDriver;
 import com.ebay.myriad.scheduler.MyriadDriverManager;
 import com.ebay.myriad.scheduler.MyriadScheduler;
+import com.ebay.myriad.scheduler.MyriadHAService;
 import com.ebay.myriad.scheduler.NMProfileManager;
 import com.ebay.myriad.scheduler.ReconcileService;
 import com.ebay.myriad.scheduler.TaskFactory;
@@ -33,6 +37,7 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.AbstractYarnScheduler;
 import org.apache.mesos.state.ZooKeeperState;
@@ -41,6 +46,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.TimeUnit;
 
+import org.apache.curator.framework.CuratorFramework;
+ 
 /**
  * Guice Module for Myriad
  */
@@ -51,7 +58,9 @@ public class MyriadModule extends AbstractModule {
     private Configuration hadoopConf;
     private AbstractYarnScheduler yarnScheduler;
     private InterceptorRegistry interceptorRegistry;
+    private enum ModuleNames { CANDIDATE, LEADER_ATOMIC_BOOLEAN }
 
+    
     public MyriadModule(MyriadConfiguration cfg,
                         Configuration hadoopConf,
                         AbstractYarnScheduler yarnScheduler,
@@ -70,7 +79,7 @@ public class MyriadModule extends AbstractModule {
         bind(AbstractYarnScheduler.class).toInstance(yarnScheduler);
         bind(InterceptorRegistry.class).toInstance(interceptorRegistry);
         bind(MyriadDriver.class).in(Scopes.SINGLETON);
-        bind(MyriadDriverManager.class).in(Scopes.SINGLETON);
+        bind(DriverManager.class).to(MyriadDriverManager.class).in(Scopes.SINGLETON);
         bind(MyriadScheduler.class).in(Scopes.SINGLETON);
         bind(NMProfileManager.class).in(Scopes.SINGLETON);
         bind(DisruptorManager.class).in(Scopes.SINGLETON);
@@ -80,6 +89,10 @@ public class MyriadModule extends AbstractModule {
 
         //TODO(Santosh): Should be configurable as well
         bind(NodeScaleDownPolicy.class).to(LeastAMNodesFirstPolicy.class).in(Scopes.SINGLETON);
+                
+        bind(CuratorFramework.class).toInstance(CuratorUtils.createFramework(cfg.getZkServers()));
+        bind(HAService.class).to(MyriadHAService.class).in(Scopes.SINGLETON);
+      
     }
 
     @Provides
@@ -91,7 +104,12 @@ public class MyriadModule extends AbstractModule {
                 cfg.getZkTimeout(),
                 TimeUnit.MILLISECONDS,
                 "/myriad/" + cfg.getFrameworkName());
+        
+        
         MyriadState state = new MyriadState(zkState);
         return new SchedulerState(state);
     }
+    
+   
+     
 }

@@ -22,7 +22,8 @@ import com.ebay.myriad.configuration.MyriadConfiguration;
 import com.ebay.myriad.health.MesosDriverHealthCheck;
 import com.ebay.myriad.health.MesosMasterHealthCheck;
 import com.ebay.myriad.health.ZookeeperHealthCheck;
-import com.ebay.myriad.scheduler.MyriadDriverManager;
+import com.ebay.myriad.scheduler.DriverManager;
+import com.ebay.myriad.scheduler.HAService;
 import com.ebay.myriad.scheduler.NMProfile;
 import com.ebay.myriad.scheduler.NMProfileManager;
 import com.ebay.myriad.scheduler.Rebalancer;
@@ -34,6 +35,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+
 import org.apache.commons.collections.MapUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.AbstractYarnScheduler;
@@ -90,15 +92,24 @@ public class Main {
 
         initRebalancerService(cfg, injector);
         initTerminatorService(injector);
-        startMesosDriver(injector);
+       // startMesosDriver(injector);
+       
+        // Start HA Service
+        startDriverService(injector);
+       
     }
 
     private void startMesosDriver(Injector injector) {
         LOGGER.info("starting mesosDriver..");
-        injector.getInstance(MyriadDriverManager.class).startDriver();
+        injector.getInstance(DriverManager.class).startDriver();
         LOGGER.info("started mesosDriver..");
     }
-
+    
+    private void startDriverService(Injector injector) {
+        LOGGER.info("starting HA service..");
+        injector.getInstance(HAService.class).startAsync();
+        LOGGER.info("started HA service..");
+    }
     /**
      * Brings up the embedded jetty webserver for serving REST APIs.
      *

@@ -128,7 +128,10 @@ public class MyriadConfiguration {
 
     @JsonProperty
     private String mesosAuthenticationSecretFilename;
-
+    
+    @JsonProperty
+    private boolean highlyAvailable;
+    
     public String getMesosMaster() {
         return mesosMaster;
     }
@@ -193,4 +196,7 @@ public class MyriadConfiguration {
 
     public String getMesosAuthenticationPrincipal(){ return mesosAuthenticationPrincipal; }
 
+    public boolean getHighlyAvailable() { return highlyAvailable; }
+    
+    public void setHighlyAvailable(boolean ha) { highlyAvailable = ha; }
 }

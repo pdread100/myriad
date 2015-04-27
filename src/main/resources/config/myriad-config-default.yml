@@ -1,0 +1,33 @@
+mesosMaster: 10.0.2.15:5050
+checkpoint: false
+frameworkFailoverTimeout: 43200000
+frameworkName: MyriadAlpha
+frameworkRole: 
+nativeLibrary: /usr/local/lib/libmesos.so
+zkServers: localhost:2181
+zkTimeout: 20000
+restApiPort: 8192
+profiles:
+  small:
+    cpu: 1
+    mem: 1100
+  medium:
+    cpu: 2
+    mem: 2048
+  large:
+    cpu: 4
+    mem: 4096
+rebalancer: false
+nodemanager:
+  jvmMaxMemoryMB: 1024
+  user: hduser
+  cpus: 0.2
+  cgroups: false
+executor:
+  jvmMaxMemoryMB: 256
+  path: file://localhost/usr/local/libexec/mesos/myriad-executor-0.0.1.jar
+yarnEnvironment:
+  YARN_HOME: /usr/local/hadoop
+mesosAuthenticationPrincipal:
+mesosAuthenticationSecretFilename:
+highAvailability: true
