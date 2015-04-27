@@ -35,7 +35,7 @@ class MyriadHAServiceSpec extends Specification {
             haService.awaitTerminated();
          
     }
-    
+    // Make sure the RM is not running
     def "testLeaderElectionWithFailure" () {
         setup:
             def t1 = new ServiceThread("1")
@@ -94,7 +94,7 @@ class MyriadHAServiceSpec extends Specification {
     
     
     public void sleep() {
-        try { Thread.sleep(1000); } catch (Exception e) { 
+        try { Thread.sleep(2000); } catch (Exception e) { 
         }       
     }
     

@@ -44,8 +44,14 @@ public class MyriadHAService extends AbstractExecutionThreadService implements H
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
             public void run() {
-                service.triggerShutdown();
-                service.awaitTerminated();
+                try {
+                    service.triggerShutdown();
+                } catch (Exception e) {
+                }
+                try {
+                    service.awaitTerminated();
+                } catch (Exception e) {
+                }
             }
         });
        
@@ -71,8 +77,7 @@ public class MyriadHAService extends AbstractExecutionThreadService implements H
              latch.await();
              
         } catch (Exception e) {
-            e.printStackTrace();
-            System.out.println("Exception  " + e);
+            LOGGER.error("Exception  ", e);
             throw e;
         }
         LOGGER.info("HA service exiting.......");
