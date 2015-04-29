@@ -129,14 +129,15 @@ public class MyriadConfiguration {
     @JsonProperty
     private String mesosAuthenticationSecretFilename;
     
-    @JsonProperty
-    private boolean highlyAvailable;
-    
+
+    public MyriadConfiguration(){}
+
+
     public String getMesosMaster() {
         return mesosMaster;
     }
 
-    public Boolean getCheckpoint() {
+    public Boolean isCheckpoint() {
         return this.checkpoint != null ? checkpoint : DEFAULT_CHECKPOINT;
     }
 
@@ -156,10 +157,6 @@ public class MyriadConfiguration {
 
     public Map<String, Map<String, String>> getProfiles() {
         return profiles;
-    }
-
-    public Boolean isCheckpoint() {
-        return checkpoint != null ? checkpoint : DEFAULT_CHECKPOINT;
     }
 
     public Boolean isRebalancer() {
@@ -196,7 +193,4 @@ public class MyriadConfiguration {
 
     public String getMesosAuthenticationPrincipal(){ return mesosAuthenticationPrincipal; }
 
-    public boolean getHighlyAvailable() { return highlyAvailable; }
-    
-    public void setHighlyAvailable(boolean ha) { highlyAvailable = ha; }
 }
