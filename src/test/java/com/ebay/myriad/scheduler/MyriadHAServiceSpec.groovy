@@ -49,6 +49,7 @@ class MyriadHAServiceSpec extends Specification {
     // This test runs two threads, figures which is the leader, kills it,
     // then checks to see if the other becomes a leader, then kills that one.
     // Make sure the RM is not running
+    @Ignore
     def "testLeaderElectionWithFailure" () {
         setup:
             def t1 = new ServiceThread("1")
