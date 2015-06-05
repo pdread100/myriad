@@ -42,9 +42,9 @@ public class SchedulerState {
     private Set<Protos.TaskID> activeTasks;
     private Set<Protos.TaskID> lostTasks;
     private Set<Protos.TaskID> killableTasks;
-    private MyriadState myriadState;
+    private TasksState myriadState;
 
-    public SchedulerState(MyriadState myriadState) {
+    public SchedulerState(TasksState myriadState) {
         this.tasks = new ConcurrentHashMap<>();
         this.pendingTasks = new HashSet<>();
         this.stagingTasks = new HashSet<>();
@@ -54,6 +54,10 @@ public class SchedulerState {
         this.myriadState = myriadState;
     }
 
+    public SchedulerState(StoreContext ctx) {
+        setContext(ctx);
+    }
+    
     public void addNodes(Collection<NodeTask> nodes) {
         if (CollectionUtils.isEmpty(nodes)) {
             LOGGER.info("No nodes to add");
@@ -63,8 +67,8 @@ public class SchedulerState {
             Protos.TaskID taskId = Protos.TaskID.newBuilder().setValue(String.format("nm.%s.%s", node.getProfile().getName(), UUID.randomUUID()))
                     .build();
             addTask(taskId, node);
+            makeTaskPending(taskId);         
             LOGGER.info("Marked taskId {} pending, size of pending queue {}", taskId.getValue(), this.pendingTasks.size());
-            makeTaskPending(taskId);
         }
     }
 
@@ -89,6 +93,7 @@ public class SchedulerState {
         activeTasks.remove(taskId);
         lostTasks.remove(taskId);
         killableTasks.remove(taskId);
+        updateTaskStoreState();
     }
 
     public void makeTaskStaging(Protos.TaskID taskId) {
@@ -100,6 +105,7 @@ public class SchedulerState {
         activeTasks.remove(taskId);
         lostTasks.remove(taskId);
         killableTasks.remove(taskId);
+        updateTaskStoreState();
     }
 
     public void makeTaskActive(Protos.TaskID taskId) {
@@ -111,6 +117,7 @@ public class SchedulerState {
         activeTasks.add(taskId);
         lostTasks.remove(taskId);
         killableTasks.remove(taskId);
+        updateTaskStoreState();
     }
 
     public void makeTaskLost(Protos.TaskID taskId) {
@@ -122,6 +129,7 @@ public class SchedulerState {
         activeTasks.remove(taskId);
         lostTasks.add(taskId);
         killableTasks.remove(taskId);
+        updateTaskStoreState();
     }
 
     public void makeTaskKillable(Protos.TaskID taskId) {
@@ -133,6 +141,7 @@ public class SchedulerState {
         activeTasks.remove(taskId);
         lostTasks.remove(taskId);
         killableTasks.add(taskId);
+        updateTaskStoreState();
     }
 
     public Set<Protos.TaskID> getKillableTasks() {
@@ -150,6 +159,7 @@ public class SchedulerState {
         this.lostTasks.remove(taskId);
         this.killableTasks.remove(taskId);
         this.tasks.remove(taskId);
+        updateTaskStoreState();
     }
 
     public Set<Protos.TaskID> getPendingTaskIds() {
@@ -184,7 +194,11 @@ public class SchedulerState {
     public MyriadState getMyriadState() {
         return this.myriadState;
     }
-
+    
+    public TasksState getTasksState() {
+        return this.myriadState;
+    }
+    
     public Collection<Protos.TaskStatus> getTaskStatuses() {
         Collection<Protos.TaskStatus> taskStatuses = new ArrayList<>(this.tasks.size());
         Collection<NodeTask> tasks = this.tasks.values();
@@ -194,11 +208,37 @@ public class SchedulerState {
                 taskStatuses.add(taskStatus);
             }
         }
-
         return taskStatuses;
     }
 
     public boolean hasTask(Protos.TaskID taskID) {
         return this.tasks.containsKey(taskID);
+    }
+    
+    protected StoreContext getContext() {
+        return new StoreContext(tasks, pendingTasks, stagingTasks, activeTasks,
+                lostTasks, killableTasks);
+    }
+    
+    @SuppressWarnings("unchecked")
+    protected void setContext(StoreContext ctx) {
+        this.tasks          = ctx.getTasks();
+        this.pendingTasks   = ctx.getPendingTasks();
+        this.stagingTasks   = ctx.getStagingTasks();
+        this.activeTasks    = ctx.getActiveTasks();
+        this.lostTasks      = ctx.getLostTasks();
+        this.killableTasks  = ctx.getKillableTasks();
+    }
+    
+    protected Map<Protos.TaskID, NodeTask> getTasks() {
+        return tasks;
+    }
+    
+    private void updateTaskStoreState() {
+        try {
+            myriadState.setTasksState(getContext());  
+        } catch (Exception e) {
+            LOGGER.error("Failed to update myriad state", e);
+        }
     }
 }

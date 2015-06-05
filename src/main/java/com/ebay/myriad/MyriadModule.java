@@ -26,8 +26,8 @@ import com.ebay.myriad.scheduler.ReconcileService;
 import com.ebay.myriad.scheduler.TaskFactory;
 import com.ebay.myriad.scheduler.TaskFactory.NMTaskFactoryImpl;
 import com.ebay.myriad.scheduler.yarn.interceptor.InterceptorRegistry;
-import com.ebay.myriad.state.MyriadState;
 import com.ebay.myriad.state.SchedulerState;
+import com.ebay.myriad.state.TasksState;
 import com.ebay.myriad.webapp.HttpConnectorProvider;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
@@ -91,7 +91,7 @@ public class MyriadModule extends AbstractModule {
                 cfg.getZkTimeout(),
                 TimeUnit.MILLISECONDS,
                 "/myriad/" + cfg.getFrameworkName());
-        MyriadState state = new MyriadState(zkState);
+        TasksState state = new TasksState(zkState);
         return new SchedulerState(state);
     }
 }
