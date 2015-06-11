@@ -36,6 +36,13 @@ public class MyriadDriver {
       this.driver = driver;
     }
 
+    public Status stop(boolean failover) {
+        LOGGER.info("Stopping driver");
+        Status status = driver.stop(failover);
+        LOGGER.info("Driver stopped with status: {}", status);
+        return status;      
+    }
+
     public Status start() {
         LOGGER.info("Starting driver");
         Status status = driver.start();
@@ -60,4 +67,5 @@ public class MyriadDriver {
     public SchedulerDriver getDriver() {
         return driver;
     }
+
 }
