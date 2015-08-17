@@ -22,6 +22,7 @@ import com.ebay.myriad.state.SchedulerState;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import org.apache.mesos.Protos;
+import org.apache.mesos.Protos.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,16 +40,19 @@ public class MyriadOperations {
     private MyriadConfiguration cfg;
     private NMProfileManager profileManager;
     private NodeScaleDownPolicy nodeScaleDownPolicy;
+    private MyriadDriverManager driverManager;
 
     @Inject
     public MyriadOperations(MyriadConfiguration cfg,
                             SchedulerState schedulerState,
                             NMProfileManager profileManager,
-                            NodeScaleDownPolicy nodeScaleDownPolicy) {
+                            NodeScaleDownPolicy nodeScaleDownPolicy,
+                            MyriadDriverManager driverManager) {
         this.cfg = cfg;
         this.schedulerState = schedulerState;
         this.profileManager = profileManager;
         this.nodeScaleDownPolicy = nodeScaleDownPolicy;
+        this.driverManager = driverManager;
     }
 
     public void flexUpCluster(int instances, String profile) {
